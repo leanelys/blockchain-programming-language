@@ -1,92 +1,11 @@
 from flask import Flask, render_template, request, send_file
 import ply.lex as lex
 import ply.yacc as yacc
+import block as b
+import blockchain as bc
 import json
-import hashlib
 import io
 import sys
-
-# ====================================================================================================
-# BLOCK CLASS
-# ====================================================================================================
-class Block:
-    # Block constructor
-    def __init__(self, data):
-       self.data = data                  # Data for Block
-       self.prev_hash = None             # Hash of previous Block in the BlockChain
-       self.index = None                 # Index of Block in the BlockChain
-       self.nonce = 0                    # Nonce for mining starts at 0
-       self.hashcode = self.get_hash()   # Calculate the hash based on the data
-    
-    # Gets the hash of the Block object's data
-    def get_hash(self):
-        data_to_hash = (str(self.data) + str(self.nonce))                # Put data and nonce into single string
-        return hashlib.sha256(data_to_hash.encode('utf-8')).hexdigest()  # Return hash using SHA256
-
-    # Mine the block based on the difficulty given
-    def mine(self, difficulty: int):
-        target = "0" * difficulty                              # Number of 0's required to mine successfully
-        while not self.hashcode[0:int(difficulty)] == target:  # While the first characters in the hash arent the target...
-            self.nonce += 1                                    # Up the nonce by 1 so the next hash is different
-            self.hashcode = self.get_hash()                    # Recalculate hash with the updated nonce
-    
-    # Print the Block's information
-    def print(self):
-        block = self.get_as_dict()
-        for k in block:
-            print(f"{k} : {block[k]}")
-    
-    # Return the Block's data as a dictionary
-    def get_as_dict(self):
-        block = {
-            "Index" : self.index,
-            "Hash" : self.hashcode,
-            "Previous Hash" : self.prev_hash,
-            "Nonce" : self.nonce,
-            "Data" : self.data
-        }
-        return block
-
-
-# ====================================================================================================
-# BLOCKCHAIN CLASS
-# ====================================================================================================
-class BlockChain:
-    # BlockChain constructor
-    def __init__(self):
-        self.chain = []                   # Create the chain for Blocks to go in
-        self.difficulty = 4               # Difficulty for mining
-        genesis = Block("Genesis Block")  # Hardcoding the first/genesis block in the blockchain
-        genesis.prev_hash = "0"*64
-        genesis.mine(self.difficulty)
-        genesis.index = 0
-        self.chain.append(genesis)                         
-
-    # Adds a Block to the BlockChain
-    def add(self, block: Block):
-        block.prev_hash = self.chain[-1].get_hash()  # Use the last Block's hash to set this Block's previous hash
-        block.index = len(self.chain)                # Set the Block's index now that it's in the BlockChain
-        self.chain.append(block)                     # Add it to the end of the chain
-    
-    # Print each Block in the chain and its info
-    def print(self):
-        for block in self.chain:
-            block.print()
-
-    def export(self):
-        blocks = {}                                 # Store all the blocks in a dictionary
-        for block in self.chain:                    # Iterate through the chain
-            block_name = f"Block{block.index}"      # The key for the dict will be Block{i} e.g. Block0, Block1, etc.
-            curr_block = block.get_as_dict()        # Store current Block as a dictionary
-            blocks[block_name] = curr_block         # Add to blocks dictionary
-        with open("blockchain.json", 'w') as file:  
-            json.dump(blocks, file, indent=4)       # Dumps all the dicts into blockchain.json
-
-    # Mine all the Blocks in the BlockChain
-    def mine(self):
-        for block in self.chain:
-            block.mine(self.difficulty)
-
 
 # ====================================================================================================
 # LEXICAL ANALYSIS
@@ -180,7 +99,7 @@ def t_error(t):  # Error handler for illegal characters
 
 # ====================================================================================================
 # Global variables
-blockchain = BlockChain()
+blockchain = bc.BlockChain()
 block_definitions = {}
 
 # ====================================================================================================
@@ -286,7 +205,7 @@ def p_block_operation(p):
 
             data_dict[field] = value
 
-        new_block = Block(data_dict)
+        new_block = b.Block(data_dict)
         blockchain.add(new_block)
         print(f"{block_name} added to blockchain")
 
